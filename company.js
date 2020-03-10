@@ -36,8 +36,102 @@ const startUp = function() {
             )
         } else if (res.action === 'Quit') {
             process.exit();
-        }   
+        } else if (res.action === 'View Departments') {
+            connection.query(
+                'SELECT * FROM department',
+                function(err, data) {
+                    if (err) {
+                        throw err;
+                    }
+                    console.table(data);
+                    startUp();
+                }
+            )
 
+        } else if (res.action === 'View Roles') {
+            connection.query(
+                'SELECT * FROM role',
+                function(err, data) {
+                    if (err) {
+                        throw err;
+                    }
+                    console.table(data);
+                    startUp();
+                }
+            )
+        } else if (res.action === 'Add Department') {
+            inquirer.prompt(
+                {
+                    name: 'newDepartment',
+                    type: 'input',
+                    message: 'What kind of department would you like to add?',
+                }).then((response) => {
+                    connection.query(
+                'INSERT INTO department (name) VALUES (?)',
+                response.newDepartment,
+                function(err, res) {
+                    if (err) {
+                        throw err;
+                    }
+                    console.log(`${response.newDepartment} was added as a department.`)
+                    startUp();
+                }
+                
+                )
+                })
+
+
+        } else if (res.action === 'Add Role') {
+            connection.query(
+                'SELECT * FROM department',
+                function(err, data) {
+                    if (err) {
+                        throw err;
+                    }
+                    console.log(data);
+
+                    let departments = [];
+                    for (let i = 0; i < data.length; i++) {
+                        departments.push(data[i].name)
+                    }
+                    console.log(departments);
+                    inquirer.prompt([
+                        {
+                            name: 'roleName',
+                            message: 'What is the name of the new role?',
+                            type: 'input'
+                        },
+                        {
+                            name: 'roleSalary',
+                            message: 'What is this role\'s salary?',
+                            type: 'input'
+                        },
+                        {
+                            name: 'roleDepartment',
+                            message: 'What is this role\'s department?',
+                            type: 'list',
+                            choices: departments
+                        }
+                    ]).then((response) => {
+                        let dept_id = departments.indexOf(response.roleDepartment) + 1
+                        console.log(dept_id);
+                        connection.query(
+                            'INSERT INTO role(title, salary, department_id) VALUES(?, ?, ?)',
+                            [response.roleName, response.roleSalary, dept_id],
+                            function(err, res) {
+                                if (err) {
+                                    throw err;
+                                }
+                                console.log(`${response.roleName} was added as a new role.`)
+                                startUp();
+                            } 
+                        )
+                    })
+                }
+            )
+        }
+            
+            
         })
 }
 
