@@ -20,7 +20,7 @@ const startUp = function() {
     inquirer.prompt({
         type: 'list',
         message: 'What would you like to do?',
-        choices: ['View Employees', 'View Roles', 'View Departments', 'Add Employee', 'Add Role', 'Add Department', 'Delete Employee', 'Delete Roles', 'Delete Department','Quit'],
+        choices: ['View Employees', 'View Roles', 'View Departments', 'Add Employee', 'Add Role', 'Add Department', 'Update Employee Role', 'Delete Employee', 'Delete Roles', 'Delete Department','Quit'],
         name: 'action'
     }).then((res) => {
         if (res.action === 'View Employees') {
@@ -113,7 +113,7 @@ const startUp = function() {
                             choices: departments
                         }
                     ]).then((response) => {
-                        let dept_id = departments.indexOf(response.roleDepartment) + 1
+                        let dept_id = data[departments.indexOf(response.roleDepartment)].id;
                         console.log(dept_id);
                         connection.query(
                             'INSERT INTO role(title, salary, department_id) VALUES(?, ?, ?)',
@@ -129,10 +129,198 @@ const startUp = function() {
                     })
                 }
             )
+        } else if (res.action === 'Add Employee') {
+            connection.query(
+                'SELECT * FROM role',
+                function(err, roles) {
+                    if (err) {
+                        throw err;
+                    }
+                    let roleList = [];
+                    for (let i = 0; i < roles.length; i++) {
+                        roleList.push(roles[i].title)
+                    };
+
+                    connection.query(
+                        'SELECT id, CONCAT(first_name, \' \', last_name) AS full_name FROM employee',
+                        (err, people) => {
+                            if (err) {
+                                throw err;
+                            }
+                            let peopleList = [];
+                            for (let i = 0; i < people.length; i++) {
+                                peopleList.push(people[i].full_name)
+                            }
+                            inquirer.prompt([
+                                {
+                                    name: 'employeeFirstName',
+                                    message: 'What is their first name?',
+                                    type: 'input'
+                                },
+                                {
+                                    name: 'employeeLastName',
+                                    message: 'What is their last name?',
+                                    type: 'input'
+                                },
+                                {
+                                    name: 'employeeRole',
+                                    message: 'What will be their role?',
+                                    type: 'list',
+                                    choices: roleList
+                                },
+                                {
+                                    name: 'employeeManager',
+                                    message: 'Who is their manager?',
+                                    type: 'list',
+                                    choices: peopleList
+                                }
+                            ]).then((response) => {
+                                let managerID = people[peopleList.indexOf(response.employeeManager)].id;
+                                let roleID = role[roleList.indexOf(response.employeeRole)].id;
+                                connection.query(
+                                    'INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?,?,?,?)',
+                                    [response.employeeFirstName, response.employeeLastName, roleID, managerID],
+                                    function(err, res) {
+                                        if (err) {
+                                            throw err;
+                                        } 
+                                        console.log(`${response.employeeFirstName} ${response.employeeLastName} has been added as a new employee.`)
+                                        startUp();
+                                    }
+                                )
+                            })
+                }
+                )
+                }
+            )
+        } else if (res.action === 'Delete Roles') {
+            connection.query(
+                'SELECT * FROM role',
+                function(err, roles) {
+                    if (err) {
+                        throw err;
+                    }
+                    let roleList = [];
+                    for (let i = 0; i < roles.length; i++) {
+                        roleList.push(roles[i].title)
+                    }
+                    inquirer.prompt(
+                        {
+                            name: 'deleteRole',
+                            type: 'list',
+                            message: 'Which role would you like to delete?',
+                            choices: roleList
+                        }
+                    ).then((response) => {
+                        connection.query(
+                            'DELETE FROM role WHERE title = ?',
+                            response.deleteRole,
+                            function(err, res) {
+                                if (err) {
+                                    throw err;
+                                }
+                                console.log(`${response.deleteRole} has been deleted as a role.`)
+                                startUp();
+                            }
+                        )
+                    })
+                } 
+            )
+        } else if (res.action === 'Delete Department') {
+            connection.query(
+                'SELECT * FROM department',
+                function(err, departments) {
+                    if (err) {
+                        throw err;
+                    }
+                    let departmentList = [];
+                    for (let i = 0; i < departments.length; i++) {
+                        departmentList.push(departments[i].name);
+                    }
+                    inquirer.prompt(
+                        {
+                            name: 'deleteDepartment',
+                            type: 'list',
+                            message: 'Which department would you like to remove?',
+                            choices: departmentList
+                        }
+                    ).then((response) => {
+                        let departmentID = departments[departmentList.indexOf(response.deleteDepartment)].id;
+                        connection.query(
+                            'DELETE FROM department WHERE id = ?',
+                            departmentID,
+                            function(err, res) {
+                                if (err) {
+                                    throw err;
+                                }
+                                console.log(`${response.deleteDepartment} was removed as a department.`);
+                                startUp();
+                            }
+                        )
+                    })
+                }
+            )
+        
+        } else if (res.action === 'Update Employee Role') {
+            connection.query(
+                'SELECT id, CONCAT(first_name, \' \', last_name) AS employee_name FROM employee',
+                function(err, employees) {
+                    if (err) {
+                        throw err;
+                    }
+                    let employeeList = [];
+                    for (let i = 0; i < employees.length; i++) {
+                        employeeList.push(employees[i].employee_name)
+                    }
+                    connection.query(
+                        'SELECT * FROM role',
+                        function(err, roles) {
+                            if (err) {
+                                throw err;
+                            }
+                            let roleList = [];
+                            for (let i = 0; i < roles.length; i++) {
+                                roleList.push(roles[i].title)
+                            }
+                            inquirer.prompt([
+                                {
+                                    name: 'chooseEmployee',
+                                    type: 'list',
+                                    message: 'Which employee\'s role would you like to update?',
+                                    choices: employeeList
+                                },
+                                {
+                                    name: 'newRole',
+                                    type: 'list',
+                                    message: 'What role would you like to change them to?',
+                                    choices: roleList
+                                }
+                                ]
+                            ).then((response) => {
+                                let employeeID = employees[employeeList.indexOf(response.chooseEmployee)].id;
+                                let newRoleID = roles[roleList.indexOf(response.newRole)].id;
+                                connection.query(
+                                    'UPDATE employee SET role_id = ? WHERE id = ?',
+                                    [newRoleID, employeeID],
+                                    function(err, res) {
+                                        if (err) {
+                                            throw err;
+                                        }
+                                        console.log(`${response.chooseEmployee} is now a ${response.newRole}`);
+                                        startUp();
+                                    }
+                                )
+                            })
+                        }
+
+                        )
+                    })
+                } else {
+                    startUp();
+                }
+            })
         }
             
-            
-        })
-}
+
 
 startUp();
