@@ -5,7 +5,7 @@ const connection = mysql.createConnection({
     host: 'localhost',
     port: 3306,
     user: 'root',
-    password: 'passwordR',
+    password: '',
     database: 'company_management'
 })
 
@@ -20,7 +20,7 @@ const startUp = function() {
     inquirer.prompt({
         type: 'list',
         message: 'What would you like to do?',
-        choices: ['View Employees', 'View Roles', 'View Departments', 'Add Employee', 'Add Role', 'Add Department', 'Update Employee Role', 'Delete Employee', 'Delete Roles', 'Delete Department','Quit'],
+        choices: ['View Employees', 'View Roles', 'View Departments', 'View Department Budget', 'Add Employee', 'Add Role', 'Add Department', 'Update Employee Role', 'Delete Employee', 'Delete Roles', 'Delete Department','Quit'],
         name: 'action'
     }).then((res) => {
         if (res.action === 'View Employees') {
@@ -34,8 +34,17 @@ const startUp = function() {
                     startUp();
                 }
             )
-        } else if (res.action === 'Quit') {
-            process.exit();
+        } else if (res.action === 'View Roles') {
+            connection.query(
+                'SELECT * FROM role',
+                function(err, data) {
+                    if (err) {
+                        throw err;
+                    }
+                    console.table(data);
+                    startUp();
+                }
+            )
         } else if (res.action === 'View Departments') {
             connection.query(
                 'SELECT * FROM department',
@@ -48,17 +57,18 @@ const startUp = function() {
                 }
             )
 
-        } else if (res.action === 'View Roles') {
+        } else if (res.action === 'View Department Budget') {
             connection.query(
-                'SELECT * FROM role',
-                function(err, data) {
+                'SELECT department.name AS Department, SUM(role.salary) AS Budget FROM employee LEFT JOIN role ON role.id = employee.role_id LEFT JOIN department ON department.id = role.department_id GROUP BY department.name',
+                function(err, budget) {
                     if (err) {
                         throw err;
                     }
-                    console.table(data);
+                    console.table(budget);
                     startUp();
                 }
-            )
+                )
+
         } else if (res.action === 'Add Department') {
             inquirer.prompt(
                 {
@@ -176,7 +186,7 @@ const startUp = function() {
                                 }
                             ]).then((response) => {
                                 let managerID = people[peopleList.indexOf(response.employeeManager)].id;
-                                let roleID = role[roleList.indexOf(response.employeeRole)].id;
+                                let roleID = roles[roleList.indexOf(response.employeeRole)].id;
                                 connection.query(
                                     'INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?,?,?,?)',
                                     [response.employeeFirstName, response.employeeLastName, roleID, managerID],
@@ -193,6 +203,39 @@ const startUp = function() {
                 )
                 }
             )
+        } else if (res.action === 'Delete Employee') {
+            connection.query(
+                'SELECT id, CONCAT(first_name, \' \', last_name) AS employee_name FROM employee',
+                function(err, employees) {
+                    if (err) {
+                        throw err;
+                    }
+                    let employeeList = [];
+                    for (let i = 0; i < employees.length; i++) {
+                        employeeList.push(employees[i].employee_name)
+                    }
+                    inquirer.prompt( {
+                        name: 'deleteEmployee',
+                        type: 'list',
+                        message: 'Which employee would you like to remove?',
+                        choices: employeeList
+                    }).then((response) => {
+                        let employeeID = employees[employeeList.indexOf(response.deleteEmployee)].id;
+                        connection.query(
+                            'DELETE FROM employee WHERE id = ?',
+                            employeeID,
+                            function (err, result) {
+                                if (err) {
+                                    throw err;
+                                }
+                                console.log(`${response.deleteEmployee} has been removed as an employee.`)
+                                startUp();
+                            }
+                        )
+                    })
+                }
+            )
+            
         } else if (res.action === 'Delete Roles') {
             connection.query(
                 'SELECT * FROM role',
@@ -315,6 +358,8 @@ const startUp = function() {
 
                         )
                     })
+                } else if (res.action === 'Quit') {
+                    process.exit();
                 } else {
                     startUp();
                 }
